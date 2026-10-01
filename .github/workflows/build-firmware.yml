@@ -1,0 +1,88 @@
+name: Build firmware
+
+# 每个固件一个独立工程,所以用矩阵并行构建。
+# 打 tag 时把合并镜像(含 bootloader + 分区表 + app)发布到 Release,
+# 供 web/ 里的 ESP Web Tools 一键刷机使用。
+
+on:
+  push:
+    tags:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        firmware:
+          - voice-bot
+          - visual-novel
+    steps:
+      # submodules: true 是必须的 —— BSP 来自 upstream/ai-passport,
+      # 不检出 submodule 就没有 components/bsp。
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          submodules: recursive
+
+      - name: Restore ccache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.firmware }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ matrix.firmware }}-${{ github.ref_name }}-
+            ccache-${{ matrix.firmware }}-
+
+      - name: Build ${{ matrix.firmware }}
+        uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
+        with:
+          esp_idf_version: v5.5.3
+          target: esp32c3
+          # 在固件目录内构建,而不是仓库根目录 —— 每个固件是独立工程。
+          path: firmware/${{ matrix.firmware }}
+          extra_docker_args: >-
+            -e CCACHE_DIR=/app/.ccache
+            -e IDF_CCACHE_ENABLE=1
+          command: >-
+            idf.py build &&
+            idf.py merge-bin -o ${{ matrix.firmware }}-full.bin
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ matrix.firmware }}
+          # merge-bin 的输出在构建目录里;名字里带上固件名,方便网页区分。
+          path: firmware/${{ matrix.firmware }}/build/${{ matrix.firmware }}-full.bin
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all firmware artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: List what will be published
+        run: ls -lh release
+
+      - name: Create release (tag push)
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          name: "${{ github.ref_name }}"
+          files: release/*.bin
+          fail_on_unmatched_files: true

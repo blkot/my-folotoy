@@ -1,0 +1,33 @@
+# ---- ESP-IDF 构建产物与本地配置 ----
+# sdkconfig 里含 Wi-Fi 凭据和 API key,绝不能提交。
+sdkconfig
+sdkconfig.old
+sdkconfig.*
+!sdkconfig.defaults
+build/
+managed_components/
+dependencies.lock
+
+# ---- 本机专项配置(含密钥) ----
+*.local.toml
+config.local.toml
+.env
+.env.*
+
+# ---- 运行时产物 ----
+*.wav
+*.log
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---- submodule 的构建产物 ----
+upstream/**/build/

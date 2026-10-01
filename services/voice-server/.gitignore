@@ -1,0 +1,14 @@
+# 语音服务的本地密钥与机器相关配置 —— 绝不提交。
+# config.py 会优先读取 config.local.toml,里面可能包含 API key 和 bearer token。
+config.local.toml
+config.local.*.toml
+
+# 调试产物
+last_utterance.wav
+last_reply.wav
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/

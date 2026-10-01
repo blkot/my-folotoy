@@ -1,0 +1,32 @@
+menu "AI voice bot (walkie-talkie)"
+
+config VOICE_WIFI_SSID
+    string "Wi-Fi SSID"
+    default ""
+
+config VOICE_WIFI_PASSWORD
+    string "Wi-Fi password"
+    default ""
+
+config VOICE_SERVER_HOST
+    string "Voice server IP (the PC running voice-server/voice_server.py)"
+    default "192.168.50.88"
+
+config VOICE_SERVER_PORT
+    int "Voice server TCP port"
+    default 8090
+
+config VOICE_SAMPLE_RATE
+    int "Audio sample rate (Hz; 16000 is what STT wants)"
+    default 16000
+
+config VOICE_SPEAKER_VOLUME
+    int "Speaker volume (0-100; the BSP default is 0 = silent)"
+    range 0 100
+    default 85
+
+config VOICE_CHUNK_MS
+    int "Capture/playback chunk size (ms; 20 = 640 B at 16 kHz mono)"
+    default 20
+
+endmenu

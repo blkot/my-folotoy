@@ -1,0 +1,37 @@
+# 语音 bot 固件的配置覆盖。
+#
+# 里面的芯片/Flash/控制台/LVGL 等基础项与上游一致时不必重复;这里只列
+# 本固件的差异。构建时用 SDKCONFIG_DEFAULTS 指定本文件 + 上游的同名文件,
+# 后者提供基线(见 firmware/voice-bot/README.md 的构建命令)。
+
+# --- 目标芯片与 Flash(与上游一致,显式写出以免依赖上游文件的具体内容) ---
+CONFIG_IDF_TARGET="esp32c3"
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_HEADER_FLASHSIZE_UPDATE=n
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
+
+# --- 控制台走 C3 原生 USB(避免与板载背光 GPIO21 冲突) ---
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# --- LVGL ---
+CONFIG_LV_COLOR_DEPTH_16=y
+CONFIG_LV_DEF_REFR_PERIOD=20
+CONFIG_LV_FONT_MONTSERRAT_14=y
+CONFIG_LV_FONT_MONTSERRAT_20=y
+# 聊天式界面:气泡+中文字库比原来的单标签占得多,留够 LVGL 堆。
+CONFIG_LV_MEM_SIZE_KILOBYTES=32
+
+# --- 系统 ---
+CONFIG_FREERTOS_HZ=1000
+
+# --- 不需要蓝牙:语音链路只用 Wi-Fi,关掉可省 RAM 与 Flash ---
+CONFIG_BT_ENABLED=n
+
+# --- 内容传输 ---
+# LWIP 默认 TCP 接收窗口只有 5760 B,按 RTT ~10 ms 算吞吐上限约 0.5 MB/s。
+# 调大后语音片段上传与回复下载都更快。
+CONFIG_LWIP_TCP_WND_DEFAULT=16384
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=32

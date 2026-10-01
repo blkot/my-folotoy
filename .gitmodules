@@ -1,0 +1,3 @@
+[submodule "upstream/ai-passport"]
+	path = upstream/ai-passport
+	url = https://github.com/FoloToy/ai-passport.git

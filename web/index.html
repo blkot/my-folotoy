@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FoloToy 固件</title>
+<!-- ESP Web Tools 是 Espressif 官方的 Web Component,通过浏览器的
+     Web Serial API 直接把固件写进 ESP32,不需要安装任何驱动工具。
+     只在 Chrome / Edge 上可用(Firefox 与 Safari 没有 Web Serial)。 -->
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1rem;
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #0e1116; color: #e6eaf2;
+  }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 .3rem; }
+  .sub { color: #8a94a6; margin: 0 0 2rem; font-size: .95rem; }
+  .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .card {
+    background: #161c26; border: 1px solid #232c3a; border-radius: 14px;
+    padding: 1.25rem; display: flex; flex-direction: column; gap: .75rem;
+  }
+  .card h2 { font-size: 1.15rem; margin: 0; }
+  .card p { margin: 0; color: #a8b2c4; font-size: .92rem; }
+  .meta { color: #6c7688; font-size: .82rem; }
+  esp-web-install-button { margin-top: auto; }
+  /* ESP Web Tools 自带的按钮样式比较朴素,这里统一成深色主题。 */
+  esp-web-install-button::part(button) {
+    background: #3fa9f5; color: #06121f; border: 0; border-radius: 9px;
+    padding: .65rem 1.1rem; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  esp-web-install-button::part(button):hover { background: #61bcf7; }
+  .notes { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid #232c3a; }
+  .notes h3 { font-size: 1rem; margin: 0 0 .6rem; }
+  .notes li { color: #a8b2c4; font-size: .9rem; margin-bottom: .35rem; }
+  code { background: #1e2530; padding: .1rem .35rem; border-radius: 4px; font-size: .85em; }
+  #banner:empty { display: none; }
+  #banner {
+    background: #3a2e1e; border: 1px solid #5c4a2e; border-radius: 10px;
+    padding: .8rem 1rem; margin-bottom: 1.5rem; color: #e0c89a; font-size: .9rem;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>FoloToy 固件</h1>
+  <p class="sub">选一个固件,用数据线连上设备,点「安装」即可刷入。</p>
+
+  <div id="banner"></div>
+  <div class="grid" id="firmwares"></div>
+
+  <div class="notes">
+    <h3>说明</h3>
+    <ul>
+      <li>需要 <strong>Chrome 或 Edge</strong> 桌面版 —— 刷机用浏览器的 Web Serial,Firefox/Safari 不支持。</li>
+      <li>用<strong>支持数据传输的 USB 线</strong>连接设备(有些线只供电)。</li>
+      <li>浏览器会弹出串口选择框,选设备对应的那个口即可。</li>
+      <li>首次刷机会整片写入,约需十几秒,期间不要拔线。</li>
+      <li>Wi-Fi 与服务器地址等参数在刷入后由固件自身的配置决定(需在构建时写入)。</li>
+    </ul>
+  </div>
+</main>
+
+<script>
+// 固件清单。build 字段是合并镜像的相对路径,由部署时从 GitHub Release 拉取
+// (见 docker/ 里的同步脚本)。若某个文件不存在,卡片会显示为不可用而不是
+// 给一个坏链接。
+const FIRMWARES = [
+  {
+    id: "voice-bot",
+    name: "语音 bot",
+    desc: "按住「确定」说话,识别、回答、朗读都在 PC 上完成,设备只做音频收发。屏幕上能看到对话记录。",
+    file: "firmwares/voice-bot-full.bin",
+  },
+  {
+    id: "visual-novel",
+    name: "视觉小说",
+    desc: "从服务器拉取剧情与画面,按键推进对话。素材全部在服务器上,设备不存内容。",
+    file: "firmwares/visual-novel-full.bin",
+  },
+];
+
+// 偏移量来自各固件的 partitions.csv,两个固件一致:
+//   0x0      bootloader
+//   0x8000   分区表
+//   0x10000  应用
+const BOOTLOADER_OFFSET = 0x0;
+const PARTITION_OFFSET = 0x8000;
+const APP_OFFSET = 0x10000;
+
+function banner(message) {
+  document.getElementById("banner").textContent = message;
+}
+
+async function available(path) {
+  if (!path) return true;   // 没有清单时不做检查,交给浏览器报错
+  try {
+    const response = await fetch(path, { method: "HEAD" });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function render() {
+  if (!("serial" in navigator)) {
+    banner("当前浏览器不支持 Web Serial,请改用桌面版 Chrome 或 Edge。");
+  }
+
+  const container = document.getElementById("firmwares");
+  for (const firmware of FIRMWARES) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const title = document.createElement("h2");
+    title.textContent = firmware.name;
+
+    const desc = document.createElement("p");
+    desc.textContent = firmware.desc;
+
+    const ok = await available(firmware.file);
+
+    card.append(title, desc);
+
+    if (ok) {
+      // manifest 告诉 ESP Web Tools 该怎么写:合并镜像从 0x0 整片写入,
+      // 三个段其实都在同一个文件里,所以只需要一条 0x0 的记录。
+      const manifest = {
+        name: firmware.name,
+        version: "latest",
+        builds: [{
+          chipFamily: "ESP32-C3",
+          parts: [{ path: firmware.file, offset: BOOTLOADER_OFFSET }],
+        }],
+      };
+      const manifestUrl = URL.createObjectURL(
+        new Blob([JSON.stringify(manifest)], { type: "application/json" }));
+
+      const button = document.createElement("esp-web-install-button");
+      button.setAttribute("manifest", manifestUrl);
+      const slot = document.createElement("span");
+      slot.setAttribute("slot", "activate");
+      slot.textContent = "安装";
+      button.append(slot);
+      card.append(button);
+    } else {
+      const missing = document.createElement("p");
+      missing.className = "meta";
+      missing.textContent = "暂无可用的固件文件(部署时未同步)。";
+      card.append(missing);
+    }
+
+    const meta = document.createElement("p");
+    meta.className = "meta";
+    meta.textContent = `目标芯片 ESP32-C3 · 文件 ${firmware.file}`;
+    card.append(meta);
+
+    container.append(card);
+  }
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+menu "VN visual novel app"
+
+config VN_WIFI_SSID
+    string "Wi-Fi SSID (build-time; leave empty to fall back to the developer menu)"
+    default ""
+
+config VN_WIFI_PASSWORD
+    string "Wi-Fi password"
+    default ""
+
+config VN_SERVER_HOST
+    string "VN content server host or IP"
+    default "192.168.1.100"
+
+config VN_SERVER_PORT
+    int "VN content server port"
+    default 8080
+
+config VN_START_NODE
+    string "Start node id"
+    default "start"
+
+endmenu

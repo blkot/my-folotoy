@@ -1,0 +1,24 @@
+# 在 NAS 上部署固件分发页。
+#
+#   cd my-folotoy
+#   docker compose -f docker/docker-compose.yml up -d --build
+#
+# 然后把固件二进制放进 web/firmwares/(见 README)。
+#
+# J4125 是 x86-64,nginx:alpine 有对应架构,不需要特殊处理。
+
+services:
+  firmware-web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: my-folotoy-web:latest
+    container_name: my-folotoy-web
+    # 8500 避开 NAS 上常见的 80/8080;不需要就改左边那个数。
+    ports:
+      - "8500:80"
+    volumes:
+      # 固件二进制单独挂载:换固件只要替换文件并重启容器,
+      # 不用重建镜像,也不用重新上传站点。
+      - ../web/firmwares:/usr/share/nginx/html/firmwares:ro
+    restart: unless-stopped

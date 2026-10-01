@@ -1,0 +1,82 @@
+{
+  "title": "展厅的黄昏",
+  "version": 1,
+  "start": "start",
+  "nodes": {
+    "start": {
+      "kind": "scene",
+      "bg": "bg_hall",
+      "next": "start_2"
+    },
+    "start_2": {
+      "kind": "say",
+      "text": "天快黑了，展厅里只剩下你一个人。",
+      "next": "start_3"
+    },
+    "start_3": {
+      "kind": "say",
+      "text": "墙上的两件展品，在灯下轻轻地发着光。",
+      "next": "start_4"
+    },
+    "start_4": {
+      "kind": "say",
+      "text": "你要先看哪一件？",
+      "next": "start_5"
+    },
+    "start_5": {
+      "kind": "choice",
+      "options": [
+        {
+          "text": "会发光的怀表",
+          "next": "watch_1"
+        },
+        {
+          "text": "不会反光的镜子",
+          "next": "mirror_1"
+        }
+      ]
+    },
+    "watch_1": {
+      "kind": "scene",
+      "bg": "bg_watch",
+      "next": "watch_2"
+    },
+    "watch_2": {
+      "kind": "sprite",
+      "sprite": "hero",
+      "next": "watch_3"
+    },
+    "watch_3": {
+      "kind": "say",
+      "text": "怀表的指针停在同一个时刻，一直没有动。",
+      "next": "watch_4"
+    },
+    "watch_4": {
+      "kind": "say",
+      "text": "你把它轻轻放回原处，转身离开。",
+      "next": "watch_5"
+    },
+    "watch_5": {
+      "kind": "end",
+      "text": "—— 完 ——"
+    },
+    "mirror_1": {
+      "kind": "sprite",
+      "next": "mirror_2"
+    },
+    "mirror_2": {
+      "kind": "say",
+      "text": "镜子里没有你的影子，只有一扇小门。",
+      "next": "mirror_3"
+    },
+    "mirror_3": {
+      "kind": "say",
+      "text": "你向前走了一步，门就轻轻打开了。",
+      "next": "mirror_4"
+    },
+    "mirror_4": {
+      "kind": "end",
+      "text": "—— 完 ——"
+    }
+  }
+}
