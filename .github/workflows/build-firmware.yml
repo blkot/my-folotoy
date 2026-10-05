@@ -80,9 +80,27 @@ jobs:
       - name: List what will be published
         run: ls -lh release
 
+      - name: Build registry.json
+        # 索引由已发布的二进制现场推导,所以它不可能和真实可下载的文件不一致。
+        # 手机端脚本/App 只依赖这一个 URL 就能拿到版本、大小与校验和。
+        run: python3 tools/make_registry.py release site
+
       - name: Create release (tag push)
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           name: "${{ github.ref_name }}"
           files: release/*.bin
           fail_on_unmatched_files: true
+
+      - name: Publish registry to gh-pages
+        # 用 gh-pages 分支而不是 Pages 部署动作:不需要在仓库设置里做任何事,
+        # CI 自己推分支即可,读取地址固定为
+        #   https://raw.githubusercontent.com/<owner>/<repo>/gh-pages/registry.json
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
+          # 只保留最新一份索引:它是"当前可刷什么"的快照,不是历史存档。
+          force_orphan: true
+          commit_message: "registry: ${{ github.ref_name }}"
