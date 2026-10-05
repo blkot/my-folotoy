@@ -9,17 +9,20 @@ FoloToy AI Passport（ESP32-C3）的**自建固件集**。
 
 ```
 upstream/ai-passport/      上游仓库(submodule)—— BSP 驱动从这里来
-shared/fonts/              两个固件共用的 GB2312 中文字库(只存一份)
+shared/fonts/              各固件共用的 GB2312 中文字库(只存一份)
 firmware/
   voice-bot/               语音 bot:按住说话,识别/回答/朗读都在 PC 上
   visual-novel/            视觉小说:剧情与画面从服务器拉取
+  usage-monitor/           用量监控:各平台 AI 用量,数据来自局域网 HTTP 服务
+  space-key/               蓝牙空格键:与 PC 配对后,按确定 = 在 PC 上敲空格
 services/
   voice-server/            语音 bot 的后端(Python)
   vn-server/               视觉小说的后端(FastAPI)
+  usage-server/            用量监控的后端(Python)
 tools/test.sh              纯逻辑 host 测试(不需要 ESP-IDF)
 web/                       固件分发页(ESP Web Tools 一键刷机)
 docker/                    在 NAS 上部署分发页
-docs/                      调研报告(手机端刷机流水线等)
+docs/                      设计与调研文档(设计规范、手机端刷机流水线等)
 ```
 
 ## 为什么这样组织

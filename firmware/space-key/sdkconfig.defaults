@@ -1,0 +1,46 @@
+# space-key 固件的配置覆盖。
+#
+# 一个极简固件:BLE HID 键盘,和 PC 配对后按 OK 键 = 在 PC 上敲一下空格。
+# 与 voice-bot / usage-monitor 的关键差异:**不要 Wi-Fi**。
+# 不用 Wi-Fi 是本固件内存宽裕的主因 —— BLE 控制器 + NimBLE host 之外没有别的
+# 大块预留,界面也只有一个状态页。
+
+# --- 目标芯片与 Flash ---
+CONFIG_IDF_TARGET="esp32c3"
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_HEADER_FLASHSIZE_UPDATE=n
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
+
+# --- 控制台走 C3 原生 USB(避免与板载背光 GPIO21 冲突) ---
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# --- LVGL ---
+CONFIG_LV_COLOR_DEPTH_16=y
+CONFIG_LV_DEF_REFR_PERIOD=20
+CONFIG_LV_FONT_MONTSERRAT_14=y
+CONFIG_LV_FONT_MONTSERRAT_20=y
+CONFIG_LV_FONT_MONTSERRAT_28=y
+# 界面只有一个状态页,16 KB 足够;省下来给 BLE 控制器。
+CONFIG_LV_MEM_SIZE=16384
+
+# --- 系统 ---
+CONFIG_FREERTOS_HZ=1000
+
+# --- BLE:只做 HID 外设(NimBLE) ---
+# 不做 central / observer,单连接;控制器活动数压到 2,给 host 腾栈。
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=y
+CONFIG_BT_NIMBLE_ROLE_BROADCASTER=y
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+# 保存配对信息,重连不用重新配(写 NVS)。
+CONFIG_BT_NIMBLE_NVS_PERSIST=y
+# 关键:esp_hid 的 NimBLE HID 服务实现(nimble_hidd.c)整段被这个开关包着,
+# 不开就只有 esp_hidd_dev_init 的空壳,链接期报 esp_ble_hidd_dev_init 未定义。
+CONFIG_BT_NIMBLE_HID_SERVICE=y
+CONFIG_BT_CTRL_BLE_MAX_ACT=2

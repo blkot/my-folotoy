@@ -27,6 +27,7 @@ jobs:
           - voice-bot
           - visual-novel
           - usage-monitor
+          - space-key
     steps:
       # submodules: true 是必须的 —— BSP 来自 upstream/ai-passport,
       # 不检出 submodule 就没有 components/bsp。
