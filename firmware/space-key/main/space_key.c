@@ -46,7 +46,10 @@ static const uint8_t keyboard_report_map[] = {
     0x95, 0x01,        //   Report Count (1)
     0x75, 0x03,        //   Report Size (3)
     0x91, 0x03,        //   Output (Const,Var,Abs)
-    0x95, 0x05,        //   Report Count (5)
+    // 键位:必须与发送的报告长度一致(modifier 1 + reserved 1 + 键位 6 = 8 字节)。
+    // IDF 原示例这里写 Report Count (5)(7 字节),但发送 8 字节 —— 长度不匹配,
+    // Windows 会直接丢弃报告。
+    0x95, 0x06,        //   Report Count (6)
     0x75, 0x08,        //   Report Size (8)
     0x15, 0x00,        //   Logical Minimum (0)
     0x25, 0x65,        //   Logical Maximum (101)
