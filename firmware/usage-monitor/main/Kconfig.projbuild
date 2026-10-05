@@ -1,0 +1,31 @@
+menu "Usage monitor"
+
+config USAGE_WIFI_SSID
+    string "Wi-Fi SSID"
+    default ""
+
+config USAGE_WIFI_PASSWORD
+    string "Wi-Fi password"
+    default ""
+
+config USAGE_SERVER_HOST
+    string "Usage server host (NAS IP or hostname)"
+    default "192.168.50.88"
+
+config USAGE_SERVER_PORT
+    int "Usage server TCP port"
+    default 8090
+
+config USAGE_SERVER_PATH
+    string "Usage endpoint path"
+    default "/api/usage.txt"
+
+config USAGE_REFRESH_SECONDS
+    int "Refresh interval (seconds; 0 = only on demand)"
+    default 60
+
+config USAGE_TIMEZONE_OFFSET
+    int "Local time offset from UTC, in hours (for reset countdowns)"
+    default 8
+
+endmenu

@@ -49,6 +49,13 @@ if [[ "$want" == "all" || "$want" == "vn" ]]; then
         firmware/visual-novel/main/vn_engine.c
 fi
 
+if [[ "$want" == "all" || "$want" == "usage" ]]; then
+    run_c_test test_usage_model \
+        -Ifirmware/usage-monitor/main \
+        firmware/usage-monitor/tests/test_usage_model.c \
+        firmware/usage-monitor/main/usage_model.c
+fi
+
 echo
 if [[ $failed -eq 0 ]]; then
     echo "host tests: PASS ($ran suites)"

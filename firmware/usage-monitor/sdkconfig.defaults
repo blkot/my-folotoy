@@ -1,0 +1,50 @@
+# 用量监控固件的配置覆盖。
+#
+# 与 voice-bot 的关键差异:**不要蓝牙**。
+# 这个固件只需 Wi-Fi 拉一个 HTTP 接口,不需要 BLE 配网,所以省下了
+# BLE 控制器那几十 KB —— 内存宽裕得多,也就有条件跑 HTTPS(如果以后要)。
+# Wi-Fi 凭据走 Kconfig(见 main/Kconfig.projbuild),用 menuconfig 填。
+
+# --- 目标芯片与 Flash ---
+CONFIG_IDF_TARGET="esp32c3"
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_HEADER_FLASHSIZE_UPDATE=n
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
+
+# --- 控制台走 C3 原生 USB(避免与板载背光 GPIO21 冲突) ---
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# --- LVGL ---
+CONFIG_LV_COLOR_DEPTH_16=y
+CONFIG_LV_DEF_REFR_PERIOD=20
+CONFIG_LV_FONT_MONTSERRAT_14=y
+CONFIG_LV_FONT_MONTSERRAT_20=y
+# 大字平台名(设计规范 §4 的三档字号:28 / 20 / 14)。
+CONFIG_LV_FONT_MONTSERRAT_28=y
+# 界面是列表+进度条,元素不多。没有 BLE 抢内存,给 24 KB 留足余量。
+# 注意用 LV_MEM_SIZE(字节):LV_MEM_SIZE_KILOBYTES 已弃用,两者同时存在时
+# LVGL 会刷上千条警告,把真正的警告淹没掉。
+CONFIG_LV_MEM_SIZE=24576
+
+# --- 系统 ---
+CONFIG_FREERTOS_HZ=1000
+
+# --- 不要蓝牙 ---
+# 省下 BLE 控制器的静态预留与 NimBLE host 栈;这是本固件内存宽裕的主因。
+CONFIG_BT_ENABLED=n
+
+# --- Wi-Fi 缓冲 ---
+# 每次只拉一个小文本响应,不需要大缓冲。
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=16
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=16
+
+# --- HTTP ---
+# 响应是几百字节的文本,16 KB 窗口绰绰有余。
+CONFIG_LWIP_TCP_WND_DEFAULT=16384
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=16
+# 用量服务的响应很短,超时短一点让界面更快反馈失败。
+CONFIG_LWIP_SO_RCVBUF=y
