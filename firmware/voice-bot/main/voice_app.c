@@ -2,6 +2,7 @@
 
 #include "voice_audio.h"
 #include "voice_net.h"
+#include "voice_prov.h"
 #include "voice_ui.h"
 
 #include "bsp_battery.h"
@@ -407,6 +408,15 @@ static void voice_task(void *arg) {
     }
 }
 
+// 配网状态回调:把 voice_prov 的进展显示到屏幕上。
+static void on_prov_status(const char *text, void *user) {
+    (void)user;
+    if (!bsp_lvgl_lock(200)) return;
+    voice_ui_set_state(VOICE_UI_OFFLINE, "SETUP");
+    voice_ui_add_message(VOICE_UI_SYSTEM, text);
+    bsp_lvgl_unlock();
+}
+
 esp_err_t voice_app_start(void) {
     esp_err_t err = voice_audio_init();
     if (err != ESP_OK) return err;
@@ -427,6 +437,26 @@ esp_err_t voice_app_start(void) {
     voice_ui_build();
     voice_ui_set_state(VOICE_UI_IDLE, "READY");
     bsp_lvgl_unlock();
+
+    // 联网:优先用 NVS 里已配好的凭据;没配过(或连不上)就进蓝牙配网。
+    //
+    // 放在建线程之前做,是因为配网要独占 BLE 与 Wi-Fi;拿到 IP 后再启动
+    // 语音任务。配网失败也不阻塞启动 —— 界面和设置仍可用,用户下次开机
+    // 还能再配。
+    const esp_err_t prov_err = voice_prov_run(on_prov_status, NULL, 180000);
+    if (prov_err != ESP_OK) {
+        ESP_LOGW(TAG, "配网未完成(%s),先进入界面", esp_err_to_name(prov_err));
+        if (bsp_lvgl_lock(300)) {
+            voice_ui_set_state(VOICE_UI_OFFLINE, "NO WIFI");
+            voice_ui_add_message(VOICE_UI_SYSTEM, "没有网络。长按确定可在设置里重试配网。");
+            bsp_lvgl_unlock();
+        }
+    } else {
+        if (bsp_lvgl_lock(300)) {
+            voice_ui_set_state(VOICE_UI_IDLE, "READY");
+            bsp_lvgl_unlock();
+        }
+    }
 
     if (xTaskCreate(voice_task, "voice", 6144, NULL, 5, NULL) != pdPASS) {
         ESP_LOGE(TAG, "语音任务创建失败");

@@ -19,6 +19,7 @@ services/
 tools/test.sh              纯逻辑 host 测试(不需要 ESP-IDF)
 web/                       固件分发页(ESP Web Tools 一键刷机)
 docker/                    在 NAS 上部署分发页
+docs/                      调研报告(手机端刷机流水线等)
 ```
 
 ## 为什么这样组织
@@ -57,7 +58,12 @@ idf.py merge-bin -o voice-bot-full.bin   # 合并镜像,供网页刷机用
 
 ### Wi-Fi 与服务器地址
 
-固件**不含**任何凭据或地址的默认值 —— 它们通过 Kconfig 在构建时写入：
+凭据有两条来源，**优先用 NVS 里已配好的**：
+
+1. **设备端配网（BLUFI over BLE）** —— 开机时若 NVS 没有凭据（或连不上），
+   设备会广播 `BLUFI_FoloPassport`，用手机 App 通过蓝牙把 Wi-Fi 名称与密码
+   发进去并存进 NVS。之后每次开机自动重连。
+2. **Kconfig（仅开发用）** —— 也可以直接写进构建配置，省掉配网这一步：
 
 ```bash
 idf.py menuconfig    # 找到 "AI voice bot (walkie-talkie)" 一栏
@@ -65,6 +71,25 @@ idf.py menuconfig    # 找到 "AI voice bot (walkie-talkie)" 一栏
 
 填好的值存放在该固件目录下的 `sdkconfig` 里，**这个文件已被 gitignore**，
 不会进仓库。要给别人一份"开箱即用"的固件，请在本地构建后再分发 `.bin`。
+
+#### ⚠️ BLE 配网的已知限制（未完成）
+
+在 ESP32-C3 上这条路**内存不够**，目前**跑不通**，不要在上面浪费时间：
+
+| 现象 | 根因 |
+|---|---|
+| 手机侧卡在"建立安全通道" | Wi-Fi 与 BLE 同时运行时堆只剩 ~6 KB，BLUFI 打包时 `Malloc failed` |
+| 扫描附近 Wi-Fi 超时 | 配网期间故意没启动 Wi-Fi（为了省内存），扫描必然失败 |
+| 停止 BLE 后启 Wi-Fi 卡住 | 两者切换期间资源未完全回收 |
+
+**根因是硬件限制**：C3 可动态分配的主堆只有 **41 KB**（其余被 BLE/Wi-Fi 协议栈
+静态预留），而 BLE 控制器 + Wi-Fi 驱动无法同时装下。
+
+**当前可用的替代方案**：用 Kconfig 写入凭据后自行构建（见上）。
+
+`firmware/voice-bot/main/voice_prov*.c` 保留了完整实现（BLUFI 流程照抄上游
+`demo/blufi-provisioning`，含内存优化与崩溃修复），将来若换到有 PSRAM 的
+S3 芯片可以直接复用。
 
 ## 测试
 

@@ -1,5 +1,7 @@
 #include "voice_net.h"
 
+#include "voice_prov_radio.h"
+
 #include "sdkconfig.h"
 
 #include "esp_event.h"
@@ -7,7 +9,6 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "esp_wifi_default.h"
-#include "nvs_flash.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -41,24 +42,22 @@ static void on_wifi_event(void *arg, esp_event_base_t base, int32_t id, void *da
     }
 }
 
+// Wi-Fi 初始化。
+//
+// 凭据来自 NVS,由配网模块(voice_prov.c)写入 —— 固件本身不内置任何凭据,
+// 否则要么进仓库泄露,要么没法分享。
+// Kconfig 里的 CONFIG_VOICE_WIFI_SSID 只在"开发时想省掉配网"时才需要填,
+// 留空是正常情况。
+//
+// 注意:Wi-Fi/netif/NVS 的初始化由 voice_prov_radio_* 统一负责,这里不再
+// 重复调用 nvs_flash_init()/esp_netif_init(),避免两处初始化互相打架。
 static esp_err_t wifi_bring_up(void) {
     if (s_wifi_started) return ESP_OK;
-    if (CONFIG_VOICE_WIFI_SSID[0] == '\0') {
-        ESP_LOGE(TAG, "未配置 Wi-Fi:请设置 CONFIG_VOICE_WIFI_SSID / _PASSWORD");
-        return ESP_ERR_INVALID_STATE;
-    }
 
-    esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        nvs_flash_erase();
-        err = nvs_flash_init();
-    }
+    esp_err_t err = voice_prov_radio_nvs_prepare();
     if (err != ESP_OK) return err;
-
-    if ((err = esp_netif_init()) != ESP_OK) return err;
-    err = esp_event_loop_create_default();
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) return err;
-    if (esp_netif_create_default_wifi_sta() == NULL) return ESP_FAIL;
+    err = voice_prov_radio_network_prepare();
+    if (err != ESP_OK) return err;
 
     const wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
     if ((err = esp_wifi_init(&init)) != ESP_OK) return err;
@@ -67,16 +66,31 @@ static esp_err_t wifi_bring_up(void) {
     esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_wifi_event, NULL, NULL);
 
     wifi_config_t config = { 0 };
-    snprintf((char *)config.sta.ssid, sizeof(config.sta.ssid), "%s", CONFIG_VOICE_WIFI_SSID);
-    snprintf((char *)config.sta.password, sizeof(config.sta.password), "%s",
-             CONFIG_VOICE_WIFI_PASSWORD);
-    config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    // 先看 NVS 里配网存下来的凭据。
+    const bool have_saved = esp_wifi_get_config(WIFI_IF_STA, &config) == ESP_OK &&
+                            config.sta.ssid[0] != '\0';
+
+    if (!have_saved) {
+        // 退回 Kconfig(仅开发用);两者都没有就只能去配网。
+        if (CONFIG_VOICE_WIFI_SSID[0] == '\0') {
+            ESP_LOGW(TAG, "尚无 Wi-Fi 凭据,请先用手机配网");
+            return ESP_ERR_INVALID_STATE;
+        }
+        memset(&config, 0, sizeof(config));
+        snprintf((char *)config.sta.ssid, sizeof(config.sta.ssid), "%s",
+                 CONFIG_VOICE_WIFI_SSID);
+        snprintf((char *)config.sta.password, sizeof(config.sta.password), "%s",
+                 CONFIG_VOICE_WIFI_PASSWORD);
+        config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+        ESP_LOGI(TAG, "使用构建时写入的 Wi-Fi 配置");
+    } else {
+        ESP_LOGI(TAG, "使用已配网的 Wi-Fi 凭据");
+    }
 
     if ((err = esp_wifi_set_mode(WIFI_MODE_STA)) != ESP_OK) return err;
     if ((err = esp_wifi_set_config(WIFI_IF_STA, &config)) != ESP_OK) return err;
 
     s_wifi_started = true;
-    ESP_LOGI(TAG, "连接 Wi-Fi \"%s\" ...", CONFIG_VOICE_WIFI_SSID);
     return esp_wifi_start();
 }
 

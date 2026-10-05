@@ -21,14 +21,42 @@ CONFIG_LV_COLOR_DEPTH_16=y
 CONFIG_LV_DEF_REFR_PERIOD=20
 CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_20=y
-# 聊天式界面:气泡+中文字库比原来的单标签占得多,留够 LVGL 堆。
-CONFIG_LV_MEM_SIZE_KILOBYTES=32
+# LVGL 用独立静态内存池,配大了白白占 RAM。
+# 本固件的界面很简单(状态栏+聊天气泡+设置页),16 KB 足够;
+# 这是为 BLE 配网腾内存的关键一项 —— NimBLE host 要 4 KB 栈,而
+# BLE 控制器本身会预留大块内部 RAM,不省就没法启动广播。
+CONFIG_LV_MEM_SIZE_KILOBYTES=16
 
 # --- 系统 ---
 CONFIG_FREERTOS_HZ=1000
 
-# --- 不需要蓝牙:语音链路只用 Wi-Fi,关掉可省 RAM 与 Flash ---
-CONFIG_BT_ENABLED=n
+# --- 不需要经典蓝牙,但需要 BLE 做配网(BLUFI over NimBLE) ---
+# 固件不内置 Wi-Fi 凭据,首次启动用手机 App 通过蓝牙把凭据发进来并存入 NVS。
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_BLUFI_ENABLE=y
+# 只做配网,单连接足够;关掉用不到的角色省 RAM。
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=y
+CONFIG_BT_NIMBLE_ROLE_BROADCASTER=y
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+CONFIG_BT_NIMBLE_HOST_BASED_PRIVACY=n
+CONFIG_BT_NIMBLE_NVS_PERSIST=n
+# 配网只用一次广播、一个连接。控制器默认按 6 个并发活动预留缓冲,
+# 这里压到 2 个 —— 同样是为了给 host 任务腾出栈空间。
+CONFIG_BT_CTRL_BLE_MAX_ACT=2
+# BLUFI 的官方安全协商用 DHM + AES + MD5。
+# DHM 在 ESP-IDF 里默认被裁掉,不显式打开会在链接期报 undefined reference;
+# 同时硬件 MPI 与它的实现不兼容,必须关掉。
+CONFIG_MBEDTLS_DHM_C=y
+CONFIG_MBEDTLS_HARDWARE_MPI=n
+
+# --- Wi-Fi 缓冲 ---
+# 语音对话是低速率、低延迟场景,不需要默认那么大的收包缓冲。
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=16
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=16
 
 # --- 内容传输 ---
 # LWIP 默认 TCP 接收窗口只有 5760 B,按 RTT ~10 ms 算吞吐上限约 0.5 MB/s。
