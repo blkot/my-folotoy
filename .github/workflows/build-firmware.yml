@@ -71,6 +71,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      # 需要仓库里的 tools/make_registry.py 来生成索引,所以必须先检出。
+      # (只下载 artifact 是不够的 —— 那些是构建产物,不含脚本。)
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
       - name: Download all firmware artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
