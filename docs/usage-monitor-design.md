@@ -17,6 +17,21 @@
 
 一句话：**它把"约束"变成了"风格"**。
 
+### 参考图
+
+四页截图（设备帧缓冲原始像素）在 `docs/assets/passport-ui/`：
+
+| 页面 | 图 |
+| --- | --- |
+| 1/4 资料页 | ![1/4 资料页](assets/passport-ui/page1-identity.png) |
+| 2/4 焦点页 | ![2/4 焦点页](assets/passport-ui/page2-focus.png) |
+| 3/4 日志页 | ![3/4 日志页](assets/passport-ui/page3-log.png) |
+| 4/4 章页 | ![4/4 章页](assets/passport-ui/page4-stamps.png) |
+
+> 第 2 页很空是因为设备未同步数据（`NO DATA`）。
+> 另有官方封面的高清渲染图 `assets/passport-ui/cover-official-hd.webp`（900×1200，第 1 页）。
+> 抓取方式见 `docs/assets/passport-ui/README.md`。
+
 ---
 
 ## 1. 设计原则（提炼）
